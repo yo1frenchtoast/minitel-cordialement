@@ -100,7 +100,7 @@ struct GameStat {
   uint8_t vies;
   RoundStat rounds[NB_MANCHES];
 };
-GameStat stat;
+GameStat gameStat;
 
 // ---------------- HIGHSCORES (session, RAM) ----------------
 struct HScore {
@@ -434,15 +434,15 @@ void loopHome(long touche) {
 //  ETAT : INTRO ("Pret ? Go !")
 // ============================================================
 void initGame() {
-  stat.manche = 0;
-  stat.score = 0;
-  stat.bestTime = 0;
-  stat.averageTime = 0;
-  stat.vies = NB_VIES;
+  gameStat.manche = 0;
+  gameStat.score = 0;
+  gameStat.bestTime = 0;
+  gameStat.averageTime = 0;
+  gameStat.vies = NB_VIES;
   for (uint8_t i = 0; i < NB_MANCHES; i++) {
-    stat.rounds[i].temps = 0;
-    stat.rounds[i].erreurs = 0;
-    stat.rounds[i].points = 0;
+    gameStat.rounds[i].temps = 0;
+    gameStat.rounds[i].erreurs = 0;
+    gameStat.rounds[i].points = 0;
   }
 }
 
@@ -481,21 +481,21 @@ void drawGameFrame() {
   // HUD ligne 1
   minitel.attributs(CARACTERE_BLANC);
   char buf[40];
-  sprintf(buf, "Manche %d/%d", stat.manche, NB_MANCHES);
+  sprintf(buf, "Manche %d/%d", gameStat.manche, NB_MANCHES);
   gotoxy(1, 1); minitel.print(buf);
 
   minitel.attributs(CARACTERE_MAGENTA);
   gotoxy(20, 1);
   minitel.print("Vies:");
   for (uint8_t i = 0; i < NB_VIES; i++) {
-    minitel.attributs(i < stat.vies ? CARACTERE_ROUGE : CARACTERE_NOIR);
-    minitel.printChar(i < stat.vies ? '#' : '.'); // '#' visible en G0, (char)3 etait un code de controle invisible
+    minitel.attributs(i < gameStat.vies ? CARACTERE_ROUGE : CARACTERE_NOIR);
+    minitel.printChar(i < gameStat.vies ? '#' : '.'); // '#' visible en G0, (char)3 etait un code de controle invisible
   }
 
   minitel.attributs(CARACTERE_JAUNE);
   gotoxy(1, 2);
   char sbuf[24];
-  dtostrf(stat.score, 0, 1, sbuf);
+  dtostrf(gameStat.score, 0, 1, sbuf);
   sprintf(buf, "Score: %s pts", sbuf);
   minitel.print(buf);
 
@@ -547,7 +547,7 @@ void printTypedChar(uint8_t pos, char c, bool ok) {
 }
 
 void startManche() {
-  stat.manche++;
+  gameStat.manche++;
   taped = 0;
   scored = 0;
   roundStarted = false;
@@ -608,16 +608,16 @@ void loopManchePlay(long touche) {
 void validateRound(bool errored, unsigned long elapsedIn) {
   unsigned long elapsed = errored ? ERROR_MALUS : elapsedIn;
 
-  if (stat.bestTime == 0) stat.bestTime = elapsed;
-  else stat.bestTime = min(stat.bestTime, elapsed);
+  if (gameStat.bestTime == 0) gameStat.bestTime = elapsed;
+  else gameStat.bestTime = min(gameStat.bestTime, elapsed);
 
   unsigned long sum = elapsed;
   uint8_t n = 1;
-  for (uint8_t i = 0; i < stat.manche - 1; i++) {
-    sum += stat.rounds[i].temps;
+  for (uint8_t i = 0; i < gameStat.manche - 1; i++) {
+    sum += gameStat.rounds[i].temps;
     n++;
   }
-  stat.averageTime = sum / n;
+  gameStat.averageTime = sum / n;
 
   float points = 0;
   if (!errored) {
@@ -627,15 +627,15 @@ void validateRound(bool errored, unsigned long elapsedIn) {
     points = base - (WORD_LEN - scored);
     if (points < 0) points = 0;
     points = round(points * 2) / 2.0f; // pas de 0.5
-    stat.score += points;
+    gameStat.score += points;
   } else {
-    stat.vies--;
+    gameStat.vies--;
   }
 
-  if (stat.manche - 1 < NB_MANCHES) {
-    stat.rounds[stat.manche - 1].temps = elapsed;
-    stat.rounds[stat.manche - 1].erreurs = WORD_LEN - scored;
-    stat.rounds[stat.manche - 1].points = points;
+  if (gameStat.manche - 1 < NB_MANCHES) {
+    gameStat.rounds[gameStat.manche - 1].temps = elapsed;
+    gameStat.rounds[gameStat.manche - 1].erreurs = WORD_LEN - scored;
+    gameStat.rounds[gameStat.manche - 1].points = points;
   }
 
   lastErrored = errored;
@@ -673,7 +673,7 @@ void drawResult() {
     beep();
   } else {
     minitel.attributs(CARACTERE_MAGENTA);
-    if (stat.vies <= 0) {
+    if (gameStat.vies <= 0) {
       centerText(11, "GAME OVER");
     } else {
       centerText(11, "RATE !");
@@ -695,9 +695,9 @@ void loopMancheResult(long touche) {
   bool go = (touche == TOUCHE_ENVOI) || (millis() - etatSince >= RESULT_DURATION);
   if (!go) return;
 
-  if (stat.vies <= 0) {
+  if (gameStat.vies <= 0) {
     changeEtat(ETAT_YOULOOSE);
-  } else if (stat.manche >= NB_MANCHES) {
+  } else if (gameStat.manche >= NB_MANCHES) {
     changeEtat(ETAT_YOUWIN_STATS);
   } else {
     changeEtat(ETAT_MANCHE_PLAY); // -> startManche() via changeEtat
@@ -714,15 +714,15 @@ void drawYouWinStats() {
   centerText(2, "YOU WIN !");
   minitel.attributs(GRANDEUR_NORMALE);
 
-  char rk = rankLetter(stat.averageTime);
+  char rk = rankLetter(gameStat.averageTime);
   minitel.attributs(CARACTERE_JAUNE);
   char buf[32];
   sprintf(buf, "Rang : %c", rk);
   centerText(5, buf);
 
   char tbuf1[16], tbuf2[16];
-  dig3(stat.bestTime, tbuf1);
-  dig3(stat.averageTime, tbuf2);
+  dig3(gameStat.bestTime, tbuf1);
+  dig3(gameStat.averageTime, tbuf2);
 
   minitel.attributs(CARACTERE_BLANC);
   sprintf(buf, "Meilleur temps  : %s sec", tbuf1);
@@ -730,7 +730,7 @@ void drawYouWinStats() {
   sprintf(buf, "Temps moyen     : %s sec", tbuf2);
   centerText(9, buf);
   char scbuf[16];
-  dtostrf(stat.score, 0, 1, scbuf);
+  dtostrf(gameStat.score, 0, 1, scbuf);
   sprintf(buf, "Score final     : %s pts", scbuf);
   centerText(10, buf);
 
@@ -742,8 +742,8 @@ void drawYouWinStats() {
     gotoxy(col, row);
     char lbuf[24];
     char t3[16];
-    dig3(stat.rounds[i].temps, t3);
-    sprintf(lbuf, "%2d %5ss %2de", i + 1, t3, stat.rounds[i].erreurs);
+    dig3(gameStat.rounds[i].temps, t3);
+    sprintf(lbuf, "%2d %5ss %2de", i + 1, t3, gameStat.rounds[i].erreurs);
     minitel.print(lbuf);
   }
 
@@ -779,7 +779,7 @@ void loopEnterName(long touche) {
 
   if (touche == TOUCHE_ENVOI) {
     if (pseudoLen == 0) strcpy(pseudoBuf, "ANONYME");
-    insertHighscore(pseudoBuf, stat.score, stat.bestTime);
+    insertHighscore(pseudoBuf, gameStat.score, gameStat.bestTime);
     changeEtat(ETAT_HIGHSCORES);
     return;
   }
@@ -820,9 +820,9 @@ void drawYouLoose() {
   centerText(6, "Vous avez perdu.");
 
   char buf[32], t1[16], t2[16], sc[16];
-  dig3(stat.bestTime, t1);
-  dig3(stat.averageTime, t2);
-  dtostrf(stat.score, 0, 1, sc);
+  dig3(gameStat.bestTime, t1);
+  dig3(gameStat.averageTime, t2);
+  dtostrf(gameStat.score, 0, 1, sc);
 
   minitel.attributs(CARACTERE_JAUNE);
   sprintf(buf, "Meilleur temps : %s sec", t1);
